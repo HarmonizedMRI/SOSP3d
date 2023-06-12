@@ -67,7 +67,7 @@ a Julia-based package for regularized fieldmap estimation in MRI.
 To reconstruct images with off-resonance correction, navigate to the local folder
 where this git repo is cloned, and run
 
-```bash
+```python
 import torch
 from sosp3d.recon import sosp3d_cgsense, setup_recondata
 
@@ -84,7 +84,7 @@ xrec = sosp3d_cgsense(kdata, ktraj, smaps, b0maps=b0maps, mri_forw_args={'numpoi
 
 To visualize the reconstructed image, use the `im` function from the `sosp3d/` folder and run
 
-```bash
+```python
 from sosp3d.utils import im
 
 im(torch.abs(xrec[0,...,0:-1:4]).squeeze().cpu().numpy(), (3,3), transpose=True, savepath='path/to/xrec.png')
