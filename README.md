@@ -21,9 +21,13 @@ in `sosp3d/recon/recon3dsosp.py`.
 Clone this git repo locally using `git clone`. 
 Set up a Python environment on your system.
 Instructions to set up a [Conda](https://docs.conda.io/en/latest/)
-environment for Python, are detailed in `sosp3d/README.md`. This step
-is sufficient for users who already have their k-space data, trajectory data,
-sensitivity maps etc. in the form of h5 files.
+environment for Python, are detailed in `sosp3d/README.md`. 
+Follow the instructions in `sosp3d/README.md` and set up a 
+separate Conda environment for this project 
+(and name it something relevant like `sosp3d_env`).
+For users who already have their k-space data, trajectory data,
+sensitivity maps etc. in the form of h5 files, you can move on to the 
+next step (Usage).
 
 For users that are starting out with P-files and .mod files for data
 acquired on GE scanners, we also provide some MATLAB code in the `GE/` folder
