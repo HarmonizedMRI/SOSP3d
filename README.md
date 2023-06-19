@@ -36,22 +36,24 @@ the future (for e.g., Siemens).
 # Usage
 
 Once the Python environment is set up, the next step is to get the data
-ready for reconstruction. The recon code expects the following h5 files:
+ready for reconstruction. The recon code expects the following h5
+files (*the files themselves can be arbitrarily named, but the
+datasets within them have to be named as given below*):
 
-1. h5 file containing k-space data, with 2 datasets called '/kdata_r' and '/kdata_i' 
-each of size [(nbatch), ncoil, nshot, nread],
+1. h5 file containing k-space data, with 2 datasets called `/kdata_r` and `/kdata_i` 
+each of size `[(nbatch), ncoil, nshot, nread]`,
 representing the real and imaginary parts of the k-space data
 
 2. h5 file containing spiral trajectories (in radians), 
-with a dataset called '/ktraj',
-of size [(nbatch), 3, nshot, nread]
+with a dataset called `/ktraj`,
+of size `[(nbatch), 3, nshot, nread]`
 
-3. h5 file with 2 datasets called '/smaps_r' and '/smaps_i' each of
-size [(nbatch), ncoil, nx, ny, nz], containing the real and imaginary
+3. h5 file with 2 datasets called `/smaps_r` and `/smaps_i` each of
+size `[(nbatch), ncoil, nx, ny, nz]`, containing the real and imaginary
 parts of the sensitivity maps
 
-4. (Optional) h5 file with a dataset called '/b0maps', of size
-[(nbatch), nx, ny, nz], that contains
+4. (Optional) h5 file with a dataset called `/b0maps`, of size
+`[(nbatch), nx, ny, nz]`, that contains
 fieldmaps (in Hz)
 
 Here, `nbatch` = batch dimension, `ncoil` = number of coils,
@@ -93,22 +95,21 @@ im(torch.abs(xrec[0,...,0:-1:4]).squeeze().cpu().numpy(), (3,3), transpose=True,
 </br>
 </br>
 
-To play around with the reconstruction code, please reach out to Naveen Murthy (nnmurthy@umich.edu),
+To play around with the reconstruction code, please reach out to 
+Jon-Fredrik Nielsen (jfnielse@umich.edu) or Naveen Murthy (nnmurthy@umich.edu),
 and we would be happy to provide a link to a 3D stack-of-spirals dataset acquired on our GE 3T scanner
 at University of Michigan. Reconstruction results (with and without off-resonance correction)
 are shown below for 4 slices; using the example script in `examples/reconGEdata.py`.
 </br>
 </br>
-
-<img width="770" alt="sosp3d_results" src="https://github.com/nnmurthy/SOSP3d/assets/5600596/a1e4d8ca-3228-44e7-83ba-1a630ee8f82e">
-
+![Recon with off-resonance correction](examples/sosp3d_results.png)
 </br>
 </br>
 
 
 # Acknowledgements
 
-If this code is useful for your research, please cite the original MIRTorch abstract:
+If this code is useful for your research, please cite:
 
 ```
 @inproceedings{wang:22:mirtorch,
@@ -119,8 +120,19 @@ If this code is useful for your research, please cite the original MIRTorch abst
   year={2022}
 }
 ```
-
-
+```
+@ARTICLE{fessler:05:tbi,
+ author = {J. A. Fessler and S. Lee and V. T. Olafsson and H. R. Shi and D. C. Noll},
+ title = {Toeplitz-based iterative image reconstruction for {MRI} with correction for magnetic field inhomogeneity},
+ journal = {{IEEE Trans. Sig. Proc.}},
+ volume = 53,
+ number = 9,
+ pages = {{3393--402}},
+ month = sep,
+ doi = {10.1109/TSP.2005.853152},
+ year = 2005
+}
+```
 
 
 
