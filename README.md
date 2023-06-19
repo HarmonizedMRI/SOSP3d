@@ -36,7 +36,8 @@ the future (for e.g., Siemens).
 # Usage
 
 Once the Python environment is set up, the next step is to get the data
-ready for reconstruction. The recon code expects the following h5
+ready for reconstruction. An example script is given in `examples/reconGEdata.py`.
+The recon code expects the following h5
 files (*the files themselves can be arbitrarily named, but the
 datasets within them have to be named as given below*):
 
@@ -56,7 +57,7 @@ parts of the sensitivity maps
 `[(nbatch), nx, ny, nz]`, that contains
 fieldmaps (in Hz)
 
-Here, `nbatch` = batch dimension, `ncoil` = number of coils,
+Here, `nbatch` = (optional) batch dimension, `ncoil` = number of coils,
 `nshot` = number of spiral shots, `nread` = number of samples in each spiral readout,
 `nx ny nz` = image matrix size. The `helpers/` folder contains MATLAB code
 to estimate sensitivity maps and fieldmaps from separately acquired data. There 
@@ -66,14 +67,22 @@ a Julia-based package for regularized fieldmap estimation in MRI.
 
 </br>
 
-To reconstruct images with off-resonance correction, navigate to the local folder
-where this git repo is cloned, and run
+To run the reconstruction routines, navigate to the folder where this Git repository
+is locally cloned. Activate the relevant Conda environment using the command
+`conda activate sosp3d_env` (assuming that the user installed a new Conda
+environment called `sosp3d_env` as per the Installation instructions above).
+Enter the Python environment by running the command `python`. Run the code
+below, from the Python commandline (by changing the paths to where
+your h5 files reside). Note: Alternatively, you can copy the code below into
+a script (say `sosp3d_example.py`) and run it directly from the shell using
+`python sosp3d_example.py`.
 
 ```python
 import torch
 from sosp3d.recon import sosp3d_cgsense, setup_recondata
 
-# read in h5 files and create PyTorch tensors
+# read in h5 files and create PyTorch tensors 
+# Note: paths to be modified by user
 kdata, ktraj, smaps, b0maps = setup_recondata("path/to/kdata.h5", "path/to/ktraj.h5",\
 "path/to/smaps.h5", "path/to/b0maps.h5", device=torch.device('cuda:0'))
 
