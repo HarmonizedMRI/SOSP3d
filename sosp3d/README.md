@@ -72,10 +72,11 @@ been installed.
 
 ## MIRTorch
 [MIRTorch](https://github.com/guanhuaw/MIRTorch) is a PyTorch-based toolbox 
-for image reconstruction. Clone the MIRTorch repository to a suitable location
+for image reconstruction. Clone the MIRTorch repository
+(https://github.com/guanhuaw/MIRTorch)
+to a suitable location
 locally and navigate to the local directory. Run the setup.py file in the MIRTorch folder.
 ```bash
-git clone git@github.com:guanhuaw/MIRTorch.git
 cd /path/to/MIRTorch
 python setup.py install
 ```
