@@ -86,7 +86,7 @@ import torch
 from sosp3d.recon import sosp3d_cgsense, setup_recondata
 
 # read in h5 files and create PyTorch tensors 
-# Note: paths to be modified by user
+# Note: paths to be modified by user (or set to None)
 kdata, ktraj, smaps, b0maps = setup_recondata("path/to/kdata.h5", "path/to/ktraj.h5",\
 "path/to/smaps.h5", "path/to/b0maps.h5", device=torch.device('cuda:0'))
 
@@ -98,11 +98,13 @@ xrec = sosp3d_cgsense(kdata, ktraj, smaps, b0maps=b0maps, mri_forw_args={'numpoi
 </br>
 
 To visualize the reconstructed image, use the `im` function from the `sosp3d/` folder and run
+the following lines. To save the figure to a file, pass in a filepath using the 
+`savepath` argument.
 
 ```python
 from sosp3d.utils import im
 
-im(torch.abs(xrec[0,...,0:-1:4]).squeeze().cpu().numpy(), (3,3), transpose=True, savepath='path/to/xrec.png')
+im(torch.abs(xrec[0,...,0:-1:4]).squeeze(), (3,3), transpose=True)
 ```
 
 </br>

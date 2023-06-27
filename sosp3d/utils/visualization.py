@@ -6,12 +6,17 @@ Naveen Murthy (nnmurthy@umich.edu)
 import matplotlib.pyplot as plt
 from typing import Optional
 import numpy as np
+import torch
 
 def im(image, subplot_size, cmap='gray', origin='lower', clim=None,\
-       fig_size_inches=(32, 24), transpose=False, cbar=False, axis=None, savepath=Optional[str]):
+       fig_size_inches=(32, 24), transpose=False, cbar=False, axis=None, savepath:Optional[str]=None):
     """
     Create an array of subplots of images.
     """
+
+    # convert torch tensor to numpy array
+    if isinstance(image, torch.Tensor):
+        image = image.cpu().numpy()
     
     fig, axs = plt.subplots(*subplot_size)
     if axs.ndim == 1:
@@ -49,5 +54,8 @@ def im(image, subplot_size, cmap='gray', origin='lower', clim=None,\
     
     plt.subplots_adjust(wspace=0, hspace=0)
 
+    # Save figure to file if path is given; else, display the image.
     if savepath is not None:
         plt.savefig(savepath)
+    else:
+        plt.show()

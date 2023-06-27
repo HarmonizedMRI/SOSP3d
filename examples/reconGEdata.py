@@ -35,7 +35,7 @@ print("Imaging setup:")
 print("N = ", N, "; res = ", res, "; fov = ", FOV)
 
 # setup data for reconstruction
-kdata, ktraj, smaps, _ = setup_recondata(data_dir + "kdata.h5", data_dir + "ktraj.h5", data_dir + "smaps.h5", None, device=device)
+kdata, ktraj, smaps, _ = setup_recondata(kdata_path, ktraj_path, smaps_path, None, device=device)
 print("\nkdata.shape:", kdata.shape)
 print("\nktraj.shape:", ktraj.shape)
 print("\nsmaps.shape:", smaps.shape)
@@ -49,7 +49,7 @@ print("Done.")
 print(f"Time taken for iterative recon: {end - start:0.1f} seconds.\n")
 
 # with off-resonance correction
-_, _, _, b0maps = setup_recondata(None, None, None, data_dir + "b0maps.h5", device=device)
+_, _, _, b0maps = setup_recondata(None, None, None, b0maps_path, device=device)
 print("\nb0maps.shape:", b0maps.shape)
 print("\nRunning iterative recon with off-resonance correction...")
 start = time.time()

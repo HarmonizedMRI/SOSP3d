@@ -19,7 +19,8 @@ def sosp3d_cgsense(kdata: torch.tensor,
                   xinit: Optional[torch.tensor] = None,
                   mri_forw_args = {'numpoints': (6,6,1)},
                   reg_param = 0.0001,
-                  CG_args = {'max_iter': 10, 'alert': True}
+                  CG_args = {'max_iter': 10, 'alert': True},
+                  use_Toeplitz_embedding: bool = True
                   ):
     """
     Reconstruct 3d stack-of-spirals MRI data using CG-SENSE algorithm.
@@ -78,7 +79,10 @@ def sosp3d_cgsense(kdata: torch.tensor,
         # Note: In the MIRTorch toolbox, NuSense() requires arguments with different dimensions than Gmri(); hence,
         # the need for a rearrange() operation
         Gop = NuSense(smaps, rearrange(ktraj, 'batch dim shot read -> batch dim (shot read)'), **mri_forw_args)
-        Gtg = NuSenseGram(smaps, rearrange(ktraj, 'batch dim shot read -> batch dim (shot read)'), **mri_forw_args)
+        if use_Toeplitz_embedding:
+            Gtg = NuSenseGram(smaps, rearrange(ktraj, 'batch dim shot read -> batch dim (shot read)'), **mri_forw_args)
+        else:
+            Gtg = Gop.H * Gop
 
         # Initial estimate of x.
         if xinit is None:
@@ -92,7 +96,10 @@ def sosp3d_cgsense(kdata: torch.tensor,
     else:
         # forward model with fieldmap correction
         Gop = Gmri(smaps=smaps, zmap=-b0maps, traj=ktraj, **mri_forw_args)
-        Gtg = GmriGram(smaps=smaps, zmap=-b0maps, traj=ktraj, **mri_forw_args)
+        if use_Toeplitz_embedding:
+            Gtg = GmriGram(smaps=smaps, zmap=-b0maps, traj=ktraj, **mri_forw_args)
+        else:
+            Gtg = Gop.H * Gop
 
         # Initial estimate of x.
         if xinit is None:
