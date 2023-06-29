@@ -83,28 +83,35 @@ a script (say `sosp3d_example.py`) and run it directly from the shell using
 
 ```python
 import torch
-from sosp3d.recon import sosp3d_cgsense, setup_recondata
+from sosp3d.recon import sosp3d_cgsense, setup_recondata, undersample_sosp_data
 
 # read in h5 files and create PyTorch tensors 
 # Note: paths to be modified by user (or set to None)
 kdata, ktraj, smaps, b0maps = setup_recondata("path/to/kdata.h5", "path/to/ktraj.h5",\
 "path/to/smaps.h5", "path/to/b0maps.h5", device=torch.device('cuda:0'))
+kdata_us, ktraj_us = undersample_sosp_data(kdata, ktraj, 3, istart=0)
 
 # recon
-xrec = sosp3d_cgsense(kdata, ktraj, smaps, b0maps=b0maps, mri_forw_args={'numpoints': (6,6,1), 'L': 36})
+xrec_B0 = sosp3d_cgsense(kdata_us, ktraj_us, smaps, b0maps=b0maps, mri_forw_args={'numpoints': (6,6,1), 'L': 36})
+xrec_noB0 = sosp3d_cgsense(kdata_us, ktraj_us, smaps, b0maps=None, mri_forw_args={'numpoints': (6,6,1)})
 
 ```
 
 </br>
 
-To visualize the reconstructed image, use the `im` function from the `sosp3d/` folder and run
+To visualize the reconstructed images and fieldmaps, use the `im` function from `sosp3d.utils` and run
 the following lines. To save the figure to a file, pass in a filepath using the 
 `savepath` argument.
 
 ```python
 from sosp3d.utils import im
 
-im(torch.abs(xrec[0,...,0:-1:4]).squeeze(), (3,3), transpose=True)
+# reconstructed images without and with B0 correction (side-by-side)
+xrec_combined = torch.cat([xrec_noB0, xrec_B0], dim=2)
+im(torch.abs(xrec_combined[0, ...,12:-1:4]).squeeze(), (2,3), transpose=True)
+
+# fieldmap visualization
+im(b0maps[...,12:-1:4].squeeze(), (2,3), transpose=True, cbar=True, cmap='viridis')
 ```
 
 </br>

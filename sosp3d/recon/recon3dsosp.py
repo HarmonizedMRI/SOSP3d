@@ -12,11 +12,11 @@ from mirtorch.linear import Gmri, GmriGram, Diff3dgram, NuSense, NuSenseGram
 from mirtorch.alg.cg import CG
 import torchkbnufft as tkbn
 
-def sosp3d_cgsense(kdata: torch.tensor,
-                  ktraj: torch.tensor,
-                  smaps: torch.tensor,
-                  b0maps: Optional[torch.tensor] = None,
-                  xinit: Optional[torch.tensor] = None,
+def sosp3d_cgsense(kdata: torch.Tensor,
+                  ktraj: torch.Tensor,
+                  smaps: torch.Tensor,
+                  b0maps: Optional[torch.Tensor] = None,
+                  xinit: Optional[torch.Tensor] = None,
                   mri_forw_args = {'numpoints': (6,6,1)},
                   reg_param = 0.0001,
                   CG_args = {'max_iter': 10, 'alert': True},
@@ -175,3 +175,55 @@ def setup_recondata(kdata: Optional[str],
             # into Python in reversed order.
 
     return kdata, ktraj, smaps, b0maps
+
+def undersample_sosp_data(kdata:torch.Tensor, ktraj:torch.Tensor, num_leafs:int, istart:int = 0):
+    """
+    Undersample 3D stack-of-spirals (sosp) data retrospectively. Currently, only allows in-plane
+    undersampling of spiral shots. todo: Incorporate through-plane undersampling (along z).
+    Assumes that "fully sampled" k-space sosp data is passed into the function. This function 
+    keeps only a single spiral shot per kz-encode platter (out of num_leafs spirals) and discards
+    the rest of the shots.
+
+    Arguments:
+        kdata : "Fully sampled" k-space data; torch.Tensor of size [(nbatch), ncoil, nshot, nread]
+        ktraj : spiral trajectory data; torch.Tensor of size [(nbatch), 3, nshot, nread]
+        num_leafs : number of spiral leafs per kz-encode platter. Example: nLeafs = 3 for
+                 a variable-density spiral scheme with 3-fold undersampling in-plane.
+
+    Options:
+        istart : Index of starting spiral shot. Has to be in range 0, 1, ... num_leafs - 1. (default: 0)
+
+    Outputs:
+        kdata : k-space data; torch.Tensor of size [(nbatch), ncoil, nshot_undersampled, nread]
+        ktraj : spiral trajectory data; torch.Tensor of size [(nbatch), 3, nshot_undersampled, nread]
+    """
+
+    # checks
+    assert istart < num_leafs, f"Index of starting spiral shot {istart=} has to be less than number of spiral leaves {num_leafs=}."
+    assert kdata.shape[-2] == ktraj.shape[-2], "Number of spiral shots must the be the same in both kdata and ktraj."
+
+    # determine starting indices for each rotated spiral leaf. 
+    # for e.g., if num_leafs = 3 and
+    # istart = 0, then starting indices for each of the 3 rotated spiral leaves are 0, 4, 8.
+    # istart = 1, then starting indices for each of the 3 rotated spiral leaves are 1, 5, 6.
+    # istart = 2, then starting indices for each of the 3 rotated spiral leaves are 2, 3, 7.
+    leaf_idxs = torch.arange(num_leafs**2).view(num_leafs, num_leafs)
+    leaf_idxs = leaf_idxs.roll(shifts=(0, -istart), dims=(0,1))
+    leaf_idxs = leaf_idxs[range(num_leafs), range(num_leafs)].tolist()
+
+    # get indices of all spiral shots to be kept for all kz-encodes (retrospective undersampling)
+    undersampling_idxs = []
+    nshot = kdata.shape[-2]
+    for k in leaf_idxs:
+        leaf_idxs_k = range(k, nshot, num_leafs**2)
+        undersampling_idxs.extend(leaf_idxs_k)
+
+    # sort indices of shots to be undersampled
+    undersampling_idxs.sort()
+
+    # only keep relevant spiral shots 
+    kdata = kdata[..., undersampling_idxs, :]
+    ktraj = ktraj[..., undersampling_idxs, :]
+
+    return kdata, ktraj
+    
