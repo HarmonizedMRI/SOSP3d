@@ -176,54 +176,59 @@ def setup_recondata(kdata: Optional[str],
 
     return kdata, ktraj, smaps, b0maps
 
-def undersample_sosp_data(kdata:torch.Tensor, ktraj:torch.Tensor, num_leafs:int, istart:int = 0):
+
+def undersample_sosp_data(kdata:torch.Tensor, ktraj:torch.Tensor, R_xy:int, R_z:int = 1, istart:int = 0):
     """
     Undersample 3D stack-of-spirals (sosp) data retrospectively. Currently, only allows in-plane
     undersampling of spiral shots. todo: Incorporate through-plane undersampling (along z).
-    Assumes that "fully sampled" k-space sosp data is passed into the function. This function 
-    keeps only a single spiral shot per kz-encode platter (out of num_leafs spirals) and discards
-    the rest of the shots.
+    Assumes that "fully sampled" k-space sosp data is passed into the function. 
 
     Arguments:
-        kdata : "Fully sampled" k-space data; torch.Tensor of size [(nbatch), ncoil, nshot, nread]
-        ktraj : spiral trajectory data; torch.Tensor of size [(nbatch), 3, nshot, nread]
-        num_leafs : number of spiral leafs per kz-encode platter. Example: nLeafs = 3 for
-                 a variable-density spiral scheme with 3-fold undersampling in-plane.
+        kdata : "Fully sampled" k-space data; torch.Tensor of size [(nbatch), ncoil, nkz, nshot, nread]. 
+                Here, nkz = number of kz encodes, nshot = number of shots in each kz encode (for 
+                fully sampled spiral data)
+        ktraj : spiral trajectory data; torch.Tensor of size [(nbatch), 3, nkz, nshot, nread]
+        R_xy : acceleration factor in-plane (has to be an integer divisor of nshot)
 
     Options:
-        istart : Index of starting spiral shot. Has to be in range 0, 1, ... num_leafs - 1. (default: 0)
+        R_z : acceleration factor through-plane (along kz). To be implemented (default: 1) 
+        istart : Index of starting spiral shot. Has to be in range 0, 1, ... R_xy - 1. (default: 0)
+                 Vary this to obtain diversity of undersampling between frames or timepoints in a 
+                 dynamic sequence.
 
     Outputs:
-        kdata : k-space data; torch.Tensor of size [(nbatch), ncoil, nshot_undersampled, nread]
-        ktraj : spiral trajectory data; torch.Tensor of size [(nbatch), 3, nshot_undersampled, nread]
+        kdata_us : k-space data; torch.Tensor of size [(nbatch), ncoil, nkz_us, nshot_us, nread], where
+                (nkz_us = nkz // R_z), and (nshot_us = nshot // R_xy) 
+        ktraj_us : spiral trajectory data; torch.Tensor of size [(nbatch), 3, nkz_us, nshot_us, nread]
     """
 
     # checks
-    assert istart < num_leafs, f"Index of starting spiral shot {istart=} has to be less than number of spiral leaves {num_leafs=}."
-    assert kdata.shape[-2] == ktraj.shape[-2], "Number of spiral shots must the be the same in both kdata and ktraj."
+    assert kdata.shape[-3:-1] == ktraj.shape[-3:-1], "Number of kz encodes and spiral shots must the be the same in both kdata and ktraj."
+    nkz, nshot = kdata.shape[-3:-1]
+    assert 0 <= istart < R_xy, f"Index of starting spiral shot istart has to be in range [0, R_xy - 1]. Here, {istart = } and {R_xy = }."
 
-    # determine starting indices for each rotated spiral leaf. 
-    # for e.g., if num_leafs = 3 and
-    # istart = 0, then starting indices for each of the 3 rotated spiral leaves are 0, 4, 8.
-    # istart = 1, then starting indices for each of the 3 rotated spiral leaves are 1, 5, 6.
-    # istart = 2, then starting indices for each of the 3 rotated spiral leaves are 2, 3, 7.
-    leaf_idxs = torch.arange(num_leafs**2).view(num_leafs, num_leafs)
-    leaf_idxs = leaf_idxs.roll(shifts=(0, -istart), dims=(0,1))
-    leaf_idxs = leaf_idxs[range(num_leafs), range(num_leafs)].tolist()
+    if nshot % R_xy != 0:
+        raise ValueError(f"Acceleration factor in-plane {R_xy = } has to be an integer divisor of number of shots {nshot = }.")
 
-    # get indices of all spiral shots to be kept for all kz-encodes (retrospective undersampling)
-    undersampling_idxs = []
-    nshot = kdata.shape[-2]
-    for k in leaf_idxs:
-        leaf_idxs_k = range(k, nshot, num_leafs**2)
-        undersampling_idxs.extend(leaf_idxs_k)
+    if R_z > 1:
+        raise ValueError("Acceleration factor of R_z > 1 not currently implemented in the through-plane direction along kz.")
 
-    # sort indices of shots to be undersampled
-    undersampling_idxs.sort()
+    # keep only required spiral shots
+    nkz_us = nkz // R_z
+    nshot_us = nshot // R_xy
+    kdata_us = torch.zeros(list(kdata.shape[:-3]) + [nkz_us, nshot_us, kdata.shape[-1]], dtype=kdata.dtype, device=kdata.device)
+    ktraj_us = torch.zeros(list(ktraj.shape[:-3]) + [nkz_us, nshot_us, ktraj.shape[-1]], dtype=ktraj.dtype, device=ktraj.device)
 
-    # only keep relevant spiral shots 
-    kdata = kdata[..., undersampling_idxs, :]
-    ktraj = ktraj[..., undersampling_idxs, :]
+    istart_arr = torch.arange(R_xy).roll(-istart) # e.g., if R_xy = 4 and istart = 3, then istart_arr = [3, 0, 1, 2]
+    for kz_i in range(nkz_us):
 
-    return kdata, ktraj
+        # starting index of spiral shot for current kz encode
+        k = istart_arr[kz_i % R_xy]
+
+        # pick out spiral shots for the current kz encode to satisfy acceleration factor R_xy.
+        # This makes sure that we don't pick identical spiral shots in every kz encode.
+        kdata_us[..., kz_i, :, :] = kdata[..., kz_i, k::R_xy, :]
+        ktraj_us[..., kz_i, :, :] = ktraj[..., kz_i, k::R_xy, :]
+
+    return kdata_us, ktraj_us
     
