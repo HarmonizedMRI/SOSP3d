@@ -1,44 +1,53 @@
 """
 Script to reconstruct 3d stack-of-spirals data acquired on 3T GE scanner.
+We take a fully-sampled stack-of-spirals dataset, and retrospectively undersample it to get 1 shot per kz-encode.
+Reconstruction with and without off-resonance correction are compared.
+
+
 Naveen Murthy (nnmurthy@umich.edu)
-2023-04
+2025-02
 """
 
 import torch
 import time
 import sys
 import os
-import warnings
 
-# add path to sosp3d for relative imports (todo: better fix?)
+# paths to be modified by user
+mirtorch_path = "/n/projects/test_sosp3d/MIRTorch" # path to MIRTorch
+data_path = "/n/projects/SOSP3d/data_fromgdrive/stack-of-spirals-dataset/" # path to stack-of-spirals data from Google drive
+save_images = True
+save_path = '/n/projects/SOSP3d/figs/' # folder to save images in
+
+# add path to sosp3d for relative imports 
 [sys.path.append(f) for f in ['.', '..']]
-from sosp3d.recon import sosp3d_cgsense, setup_recondata
+sys.path.insert(0, mirtorch_path) # path to MIRTorch
+from sosp3d.recon import sosp3d_cgsense, setup_recondata, undersample_sosp_data
 from sosp3d.utils import im
 
-# paths (to be modified by user)
-data_dir = '/n/ir71/d2/nnmurthy/data/20221013_UM3TUHP_3dspiral/out/'
-kdata_path = data_dir + "kdata.h5" # k-space data
-ktraj_path = data_dir + "ktraj.h5" # spiral trajectories
-smaps_path = data_dir + "smaps.h5" # sensitivity maps
-b0maps_path = data_dir + "b0maps.h5" # fieldmaps
-
-# save images?
-save_images = True
-save_folder = '/n/badwater/z/nnmurthy/projects/SOSP3d/figs/' # to be modified by user
-
 # imaging setup
-device = torch.device('cuda:0')
+device = torch.device('cuda:0') # change to "cpu" if you want to run on cpu
 N = [92, 92, 42] # image matrix size
+nkz = N[-1] # number of kz encodes
+nrot = 3 # number of rotated spiral shots per kz encode
 res = 0.24 # resolution in cm
 FOV = [k*res for k in N] # fov in cm
 print("Imaging setup:")
 print("N = ", N, "; res = ", res, "; fov = ", FOV)
 
-# setup data for reconstruction
-kdata, ktraj, smaps, _ = setup_recondata(kdata_path, ktraj_path, smaps_path, None, device=device)
-kdata_us, ktraj_us = undersample_sosp_data(kdata, ktraj, 3, istart=0)
-print("\nkdata.shape:", kdata_us.shape)
-print("\nktraj.shape:", ktraj_us.shape)
+
+# setup data for reconstruction. This corresponds to a fully sampled stack-of-spirals acquisition.
+kdata, ktraj, smaps, b0maps = setup_recondata(data_path + "kdata.h5", data_path + "ktraj.h5", data_path + "smaps.h5", data_path + "b0maps.h5", device=device)
+_,ncoil,_,nread = kdata.shape
+kdata = kdata.reshape(1, ncoil, nkz, nrot, nread) # [1, 32, 126, 3570] -> [1, 32, 42, 3, 3570] corresponding to 42 kz-encodes and 3 shots per kz
+ktraj = ktraj.reshape(3, nkz, nrot, nread) # [3, 126, 3570] -> [3, 42, 3, 3570]
+
+# Retrospectively undersample stack-of-spirals data to get 1 rotated spiral per kz-encode.
+kdata_us, ktraj_us = undersample_sosp_data(kdata, ktraj, nrot, istart=0)
+kdata_us = kdata_us.squeeze(3) # [1, 32, 42, 1, 3570] -> [1, 32, 42, 3570]
+ktraj_us = ktraj_us.squeeze(2) # [3, 42, 1, 3570] -> [3, 42, 3570]
+print("\nkdata_us.shape:", kdata_us.shape)
+print("\nktraj_us.shape:", ktraj_us.shape)
 print("\nsmaps.shape:", smaps.shape)
 
 # No off-resonance correction
@@ -50,7 +59,6 @@ print("Done.")
 print(f"Time taken for iterative recon: {end - start:0.1f} seconds.\n")
 
 # with off-resonance correction
-_, _, _, b0maps = setup_recondata(None, None, None, b0maps_path, device=device)
 print("\nb0maps.shape:", b0maps.shape)
 print("\nRunning iterative recon with off-resonance correction...")
 start = time.time()
@@ -62,17 +70,12 @@ print(f"Time taken for iterative recon: {end - start:0.1f} seconds.\n")
 # save images
 if save_images:
 
-    # create directory if necessary
-    if not os.path.isdir(save_folder):
-        warnings.warn("No folder to save images. Creating a directory at {} to save figures.".format(os.path.abspath(save_folder)))
-        os.makedirs(save_folder)
-
     print("Saving images...")
     xrec_comb = torch.cat([xrec_noB0, xrec_B0], dim=2)
 
     # plot and save recon images for frame 1
-    im(torch.abs(xrec_comb[0, ...,12:-1:4]).squeeze().cpu().numpy(), (2,3), transpose=True, savepath = save_folder + 'xrec.png')
+    im(torch.abs(xrec_comb[0, ...,12:-1:4]).squeeze().cpu().numpy(), (2,3), transpose=True, savepath = save_path + 'xrec_combined.png')
 
     # plot and save fieldmaps
-    im(b0maps[...,12:-1:4].squeeze().cpu().numpy(), (2,3), transpose=True, savepath=save_folder + 'b0maps.png', cbar=True, cmap='viridis')
+    im(b0maps[...,12:-1:4].squeeze().cpu().numpy(), (2,3), transpose=True, savepath=save_path + 'b0maps.png', cbar=True, cmap='viridis')
     print("Done.\n")
